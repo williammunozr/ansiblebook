@@ -11,11 +11,10 @@
     settings_path: "{{ proj_path }}/{{ proj_name }}"
     reqs_path: requirements.txt
     manage: "{{ python }} {{ proj_path }}/manage.py"
-    live_hostname: 192.168.33.10.xip.io
+    live_hostname: 10.128.0.59
     domains:
-      - 192.168.33.10.xip.io
-      - www.192.168.33.10.xip.io
-    repo_url: git@github.com:ansiblebook/mezzanine_example.git
+      - 10.128.0.59
+    repo_url: https://github.com/lorin/mezzanine-example.git
     locale: en_US.UTF-8
     # Variables below don't appear in Mezannine's fabfile.py
     # but I've added them for convenience
@@ -32,21 +31,11 @@
     - secrets.yml
   tasks:
     - name: install apt packages
-      apt: pkg={{ item }} update_cache=yes cache_valid_time=3600
+      apt: 
+        pkg: ['git', 'libjpeg-dev', 'libpq-dev', 'memcached', 'nginx', 'postgresql', 'python3-dev', 'python3-pip', 'python3-psycopg2', 'python3-setuptools', 'python3-virtualenv', 'supervisor'] 
+        update_cache: yes 
+        cache_valid_time: 3600
       become: True
-      with_items:
-        - git
-        - libjpeg-dev
-        - libpq-dev
-        - memcached
-        - nginx
-        - postgresql
-        - python-dev
-        - python-pip
-        - python-psycopg2
-        - python-setuptools
-        - python-virtualenv
-        - supervisor
     - name: create project path
       file: path={{ proj_path }} state=directory
     - name: create a logs directory
@@ -56,11 +45,9 @@
     - name: check out the repository on the host
       git: repo={{ repo_url }} dest={{ proj_path }} accept_hostkey=yes
     - name: install Python requirements globally via pip
-      pip: name={{ item }} state=latest
-      with_items:
-        - pip
-        - virtualenv
-        - virtualenvwrapper
+      pip: 
+        name: ['pip', 'virtualenv', 'virtualenvwrapper']
+        state: latest
       become: True
     - name: create project locale
       locale_gen: name={{ locale }}
@@ -70,6 +57,8 @@
         name: "{{ database_user }}"
         password: "{{ db_pass }}"
       become: True
+      vars:
+        ansible_ssh_pipelining: true
       become_user: postgres
     - name: create the database
       postgresql_db:
@@ -81,6 +70,8 @@
         template: template0
       become: True
       become_user: postgres
+      vars:
+        ansible_ssh_pipelining: true
     - name: ensure config path exists
       file: path={{ conf_path }} state=directory
       become: True
@@ -117,7 +108,7 @@
     - name: set the gunicorn config file
       template: src=templates/gunicorn.conf.py.j2 dest={{ proj_path }}/gunicorn.conf.py
     - name: generate the settings file
-      template: src=templates/local_settings.py.j2 dest={{ settings_path }}/local_settings.py
+      template: src=templates/local_settings.py.j2 dest={{ proj_path }}/local_settings.py
     - name: install requirements.txt
       pip: requirements={{ proj_path }}/{{ reqs_path }} virtualenv={{ venv_path }}
     - name: install required python packages
